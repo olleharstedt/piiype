@@ -40,11 +40,6 @@ class IOFactory implements IOFactoryInterface
         return new EchoIOAction($message . PHP_EOL);
     }
 
-    public function filter($filt)
-    {
-        return new PipelineFilter($filt);
-    }
-
     public function filterNotEmpty(IOActionInterface $error)
     {
         return new PipelineFilter(
@@ -68,17 +63,29 @@ class Mock implements IOFactoryInterface
         if (!array_key_exists($this->i, $this->results)) {
             throw new \Exception('No result at i = ' . $this->i);
         }
-        var_dump($name);
-        if (is_string($args[0])) {
-            print_r($args[0]. PHP_EOL);
-        } else {
-            var_dump(get_class($args[0]));
-        }
-        if ($args[0] instanceof \Closure) {
-            return $args[0];
-        }
         $this->args[] = $args;
-        return function () { return $this->results[$this->i++]; };
+        echo $args[0] . PHP_EOL;
+        $result = $this->results[$this->i++];
+        return function () use ($result) { return $result; };
+    }
+}
+
+class FilterNotEmpty extends PipelineFilter
+{
+    public function __construct($error = null)
+    {
+        $this->filter = function ($r) { return !empty($r); };
+        $this->error = $error;
+    }
+
+    public function __invoke($payload)
+    {
+        return (bool) ($this->filter)($payload);
+    }
+
+    public function getError()
+    {
+        return $this->error;
     }
 }
 
@@ -104,16 +111,16 @@ class HelloController extends Controller
          */
         $io = new Mock(
             [
-                false, //['id' => 1, 'is_admin' => 0],
-                false,
-                false,
+                false, //['id' => 1, 'is_admin' => 1],
                 null,
-                null
+                null,
+                null,
+                null,
             ]
         );
         return [
             $io->queryOne('SELECT * FROM users WHERE id = ' . $userId),
-            $io->filterNotEmpty($io->printline('Found no user with this id')),
+            new FilterNotEmpty($io->printline('Found no such user')),
             function ($user) use ($io, $userId) {
                 yield $io->printline('Yay, found user!');
                 $reverted = $user['is_admin'] ? 0 : 1;

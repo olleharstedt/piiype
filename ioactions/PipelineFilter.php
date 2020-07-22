@@ -6,7 +6,7 @@ class PipelineFilter implements PipelineFilterInterface
 {
     private $filter;
     private $error;
-    public function __construct(callable $filter, IOActionInterface $error = null)
+    public function __construct(callable $filter, $error = null)
     {
         $this->filter = $filter;
         $this->error = $error;
