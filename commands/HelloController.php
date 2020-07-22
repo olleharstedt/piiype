@@ -16,6 +16,7 @@ use app\ioactions\IOPayload;
 use app\ioactions\QueryOneIOAction;
 use app\ioactions\QueryIOAction;
 use app\ioactions\PipelineFilter;
+use app\ioactions\PipelineFilterInterface;
 use app\ioactions\IOActionInterface;
 
 interface IOFactoryInterface
@@ -67,8 +68,14 @@ class Mock implements IOFactoryInterface
         if (!array_key_exists($this->i, $this->results)) {
             throw new \Exception('No result at i = ' . $this->i);
         }
+        var_dump($name);
         if (is_string($args[0])) {
             print_r($args[0]. PHP_EOL);
+        } else {
+            var_dump(get_class($args[0]));
+        }
+        if ($args[0] instanceof \Closure) {
+            return $args[0];
         }
         $this->args[] = $args;
         return function () { return $this->results[$this->i++]; };
@@ -97,7 +104,7 @@ class HelloController extends Controller
          */
         $io = new Mock(
             [
-                ['id' => 1, 'is_admin' => 0],
+                false, //['id' => 1, 'is_admin' => 0],
                 false,
                 false,
                 null,
