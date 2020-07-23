@@ -39,38 +39,39 @@ class IOFactory implements IOFactoryInterface
     {
         return new EchoIOAction($message . PHP_EOL);
     }
-
-    public function filterNotEmpty(IOActionInterface $error)
-    {
-        return new PipelineFilter(
-            function($result) { return !empty($result); },
-            $error
-        );
-    }
 }
 
 class Mock implements IOFactoryInterface
 {
     private $results;
     private $i = 0;
-    public $args = [];
+    private $args = [];
+
     public function __construct($results)
     {
         $this->results = $results;
     }
+
     public function __call($name, $args)
     {
         if (!array_key_exists($this->i, $this->results)) {
-            throw new \Exception('No result at i = ' . $this->i);
+            $result = null;
+        } else {
+            $result = $this->results[$this->i];
         }
+        $this->i++;
+
+        // Spy
         $this->args[] = $args;
-        echo $args[0] . PHP_EOL;
-        $result = $this->results[$this->i++];
-        return function () use ($result) { return $result; };
+
+        return function () use ($result, $args) {
+            echo $args[0] . PHP_EOL;
+            return $result;
+        };
     }
 }
 
-class FilterNotEmpty extends PipelineFilter
+class FilterEmpty extends PipelineFilter
 {
     public function __construct($error = null)
     {
@@ -106,32 +107,41 @@ class HelloController extends Controller
      */
     public function actionIndex($userId = 1)
     {
-        /*
         $io = new IOFactory();
-         */
+        /*
         $io = new Mock(
             [
-                false, //['id' => 1, 'is_admin' => 1],
-                null,
-                null,
-                null,
-                null,
+                0 => ['id' => 1, 'is_admin' => 0],
             ]
         );
+         */
         return [
             $io->queryOne('SELECT * FROM users WHERE id = ' . $userId),
-            new FilterNotEmpty($io->printline('Found no such user')),
-            function ($user) use ($io, $userId) {
+            new FilterEmpty($io->printline('Found no such user')),
+            /**
+             * @param array $user TODO: Filter to convert array -> object
+             * @return int
+             */
+            function (array $user) use ($io) {
                 yield $io->printline('Yay, found user!');
-                $reverted = $user['is_admin'] ? 0 : 1;
+                $becomeAdmin = $user['is_admin'] ? 0 : 1;
                 yield $io->query(
                     sprintf(
                         'UPDATE users SET is_admin = %d WHERE id = %d',
-                        $reverted,
+                        $becomeAdmin,
                         $user['id']
                     )
                 );
-                if ($reverted === 1) {
+                return $becomeAdmin;
+            },
+            /**
+             * NB: If previous closure has both yields and return, two arguments will be sent to next closure.
+             * @param int $rowsAffected Result from last yield
+             * @param int $becomeAdmin Result from previous closure's return
+             * @return int
+             */
+            function ($rowsAffected, $becomeAdmin) use ($io) {
+                if ($becomeAdmin === 1) {
                     yield $io->printline('User is now admin');
                 } else {
                     yield $io->printline('User is no longer admin');

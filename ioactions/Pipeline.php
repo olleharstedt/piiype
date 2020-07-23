@@ -15,7 +15,12 @@ class Pipeline
             if ($action instanceof IOActionInterface) {
                 $this->resolveDependencies($action);
             }
-            $result = $action($payload);
+            if ($payload instanceof \SplFixedArray) {
+                $result = $action(...$payload);
+            } else {
+                $result = $action($payload);
+            }
+            // Filters are special
             if ($action instanceof PipelineFilterInterface) {
                 if ($result === false) {
                     if ($action->getError()) {
@@ -24,12 +29,18 @@ class Pipeline
                         return;
                     }
                 }
-            }
-            elseif ($result instanceof \Generator) {
+            } elseif ($result instanceof \Generator) {
+                // Catch all yielded actions.
                 foreach ($result as $yieldedAction) {
                     $payload = $this->run($payload, [$yieldedAction]);
                 }
-                $payload = $result->getReturn();
+                $return = $result->getReturn();
+                if (!is_null($return)) {
+                    $oldPayload = $payload;
+                    $payload = new \SplFixedArray(2);
+                    $payload[0] = $oldPayload;
+                    $payload[1] = $return;
+                }
             } else {
                 $payload = $result;
             }

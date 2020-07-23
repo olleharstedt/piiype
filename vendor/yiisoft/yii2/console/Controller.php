@@ -181,6 +181,11 @@ class Controller extends \yii\base\Controller
         $pipeline = new \app\ioactions\Pipeline;
         $ioactions = parent::runAction($id, $params);
         $result = $pipeline->run(null, $ioactions);
+        if ($result instanceof \SplFixedArray) {
+            $lastYieldResult = $result[0];
+            $generatorReturn = $result[1];
+            $result = $generatorReturn;
+        }
         return $result;
     }
 
