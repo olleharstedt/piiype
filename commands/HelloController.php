@@ -116,6 +116,7 @@ class HelloController extends Controller
         );
          */
         return [
+            // TODO: Multiple queries before business logic
             $io->queryOne('SELECT * FROM users WHERE id = ' . $userId),
             new FilterEmpty($io->printline('Found no such user')),
             /**
