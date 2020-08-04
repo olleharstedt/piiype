@@ -69,6 +69,11 @@ class Mock implements IOFactoryInterface
             return $result;
         };
     }
+
+    public function __get($name)
+    {
+        return $this;
+    }
 }
 
 class FilterEmpty extends PipelineFilter
@@ -110,7 +115,7 @@ class AdminReverter
                     $user['id']
                 )
             ),
-            $this->io->exec('rm adminfile')
+            $becomeAdmin ? $this->io->exec('touch adminfile') : $this->io->exec('rm adminfile')
         ];
         return [$becomeAdmin, $affectedRows, $rmResult];
     }
