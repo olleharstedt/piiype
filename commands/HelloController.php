@@ -144,15 +144,14 @@ class HelloController extends Controller
 
             /**
              * NB: If previous closure has both yields and return, two arguments will be sent to next closure.
-             * @param int $rowsAffected Result from last yield
-             * @param int $becomeAdmin Result from previous closure's return
+             * @param int $becomeAdmin Return from previous closure's return
              * @return int
              */
-            function ($rowsAffected, $becomeAdmin) use ($io) {
+            function ($becomeAdmin) use ($io) {
                 if ($becomeAdmin === 1) {
-                    yield $io->printline('User is now admin');
+                    yield $io->stdout->printline('User is now admin');
                 } else {
-                    yield $io->printline('User is no longer admin');
+                    yield $io->stdout->printline('User is no longer admin');
                 }
                 return ExitCode::OK;
             }
