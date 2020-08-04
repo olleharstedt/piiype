@@ -90,6 +90,41 @@ class FilterEmpty extends PipelineFilter
     }
 }
 
+class AdminReverter
+{
+    private $io;
+    public function __construct($io)
+    {
+        $this->io = $io;
+    }
+
+    public function applyRevert(array $user)
+    {
+        yield $this->io->stdout->printline('Yay, found user!');
+        $becomeAdmin = $user['is_admin'] ? 0 : 1;
+        yield [
+            $this->io->db->query(
+                sprintf(
+                    'UPDATE users SET is_admin = %d WHERE id = %d',
+                    $becomeAdmin,
+                    $user['id']
+                )
+            ),
+            $this->io->exec('rm adminfile')
+        ];
+        return $becomeAdmin;
+    }
+
+    public function showResult($becomeAdmin)
+    {
+        if ($becomeAdmin === 1) {
+            yield $io->stdout->printline('User is now admin');
+        } else {
+            yield $io->stdout->printline('User is no longer admin');
+        }
+    }
+}
+
 /**
  * This command echoes the first argument that you have entered.
  *
@@ -108,6 +143,7 @@ class HelloController extends Controller
      */
     public function actionIndex($userId = 1, $io)
     {
+        $adminRevert = new AdminReverter($io);
         /*
         $io = new Mock(
             [
@@ -121,40 +157,8 @@ class HelloController extends Controller
             // TODO: Multiple queries before business logic
             $io->db->queryOne('SELECT * FROM users WHERE id = ' . $userId),
             new FilterEmpty($io->stdout->printline('Found no such user')),
-
-            /**
-             * @param array $user TODO: Filter to convert array -> object
-             * @return int
-             */
-            function (array $user) use ($io) {
-                yield $io->stdout->printline('Yay, found user!');
-                $becomeAdmin = $user['is_admin'] ? 0 : 1;
-                yield [
-                    $io->db->query(
-                        sprintf(
-                            'UPDATE users SET is_admin = %d WHERE id = %d',
-                            $becomeAdmin,
-                            $user['id']
-                        )
-                    ),
-                    $io->exec('rm adminfile')
-                ];
-                return $becomeAdmin;
-            },
-
-            /**
-             * NB: If previous closure has both yields and return, two arguments will be sent to next closure.
-             * @param int $becomeAdmin Return from previous closure's return
-             * @return int
-             */
-            function ($becomeAdmin) use ($io) {
-                if ($becomeAdmin === 1) {
-                    yield $io->stdout->printline('User is now admin');
-                } else {
-                    yield $io->stdout->printline('User is no longer admin');
-                }
-                return ExitCode::OK;
-            }
+            fn($user) => $adminRevert->applyRevert($user),
+            fn($becomeAdmin) => $adminRevert->showResult($becomeAdmin)
         ];
     }
 
