@@ -102,7 +102,7 @@ class AdminReverter
     {
         yield $this->io->stdout->printline('Yay, found user!');
         $becomeAdmin = $user['is_admin'] ? 0 : 1;
-        yield [
+        [$affectedRows, $rmResult] = yield [
             $this->io->db->query(
                 sprintf(
                     'UPDATE users SET is_admin = %d WHERE id = %d',
@@ -112,11 +112,13 @@ class AdminReverter
             ),
             $this->io->exec('rm adminfile')
         ];
-        return $becomeAdmin;
+        return [$becomeAdmin, $affectedRows, $rmResult];
     }
 
-    public function showResult($becomeAdmin)
+    public function showResult($payload)
     {
+        // Unpack the payload.
+        [$becomeAdmin, $affectedRows, $rmResult] = $payload;
         if ($becomeAdmin === 1) {
             yield $io->stdout->printline('User is now admin');
         } else {
@@ -152,7 +154,10 @@ class HelloController extends Controller
         );
          */
 
-        // Array of promises, filters or callables.
+        // Array of promises, filters or callables
+        // Promises are resolved at once
+        // Arrays of promises are resolved concurrently
+        // Filter are applied to last result
         return [
             // TODO: Multiple queries before business logic
             $io->db->queryOne('SELECT * FROM users WHERE id = ' . $userId),
