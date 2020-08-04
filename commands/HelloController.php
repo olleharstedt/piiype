@@ -103,11 +103,11 @@ class HelloController extends Controller
     /**
      * This command echoes what you have entered as the message.
      * @param string $message the message to be echoed.
+     * @param IO $io
      * @return array<int, IOActionInterface|callable|Generator>
      */
-    public function actionIndex($userId = 1)
+    public function actionIndex($userId = 1, $io)
     {
-        $io = new IOFactory();
         /*
         $io = new Mock(
             [
@@ -115,26 +115,33 @@ class HelloController extends Controller
             ]
         );
          */
+
+        // Array of promises, filters or callables.
         return [
             // TODO: Multiple queries before business logic
-            $io->queryOne('SELECT * FROM users WHERE id = ' . $userId),
-            new FilterEmpty($io->printline('Found no such user')),
+            $io->db->queryOne('SELECT * FROM users WHERE id = ' . $userId),
+            new FilterEmpty($io->stdout->printline('Found no such user')),
+
             /**
              * @param array $user TODO: Filter to convert array -> object
              * @return int
              */
             function (array $user) use ($io) {
-                yield $io->printline('Yay, found user!');
+                yield $io->stdout->printline('Yay, found user!');
                 $becomeAdmin = $user['is_admin'] ? 0 : 1;
-                yield $io->query(
-                    sprintf(
-                        'UPDATE users SET is_admin = %d WHERE id = %d',
-                        $becomeAdmin,
-                        $user['id']
-                    )
-                );
+                yield [
+                    $io->db->query(
+                        sprintf(
+                            'UPDATE users SET is_admin = %d WHERE id = %d',
+                            $becomeAdmin,
+                            $user['id']
+                        )
+                    ),
+                    $io->exec('rm adminfile')
+                ];
                 return $becomeAdmin;
             },
+
             /**
              * NB: If previous closure has both yields and return, two arguments will be sent to next closure.
              * @param int $rowsAffected Result from last yield
@@ -148,6 +155,19 @@ class HelloController extends Controller
                     yield $io->printline('User is no longer admin');
                 }
                 return ExitCode::OK;
+            }
+        ];
+    }
+
+    /**
+     * @return
+     */
+    public function actionIndex2($userId, $appId, $io)
+    {
+        return [
+            $io->queryOne('SELECT * FROM users WHERE id = ' . $userId),
+            new FilterEmpty($io->printline('Found no such user')),
+            function ($user) use ($io) {
             }
         ];
     }
